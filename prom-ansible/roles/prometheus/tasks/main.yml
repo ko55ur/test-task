@@ -1,0 +1,25 @@
+---
+- name: Check if prometheus is installed
+  ansible.builtin.stat:
+    path: "/usr/local/bin/prometheus"
+  register: prometheus_binary
+  tags:
+    - prometheus.install
+
+- name: Include install.yml if prometheus is not installed or prometheus_force_install is true
+  ansible.builtin.include_tasks: install.yml
+  when: not prometheus_binary.stat.exists or prometheus_force_install
+  tags:
+    - prometheus.install
+
+- name: Include configure.yml if prometheus is installed
+  ansible.builtin.include_tasks: configure.yml
+  tags:
+    - prometheus.configure
+
+- name: Ensure prometheus service is started and enabled
+  ansible.builtin.systemd:
+    daemon_reload: true
+    name: prometheus
+    state: started
+    enabled: true

@@ -1,0 +1,47 @@
+Vagrant.configure("2") do |config|
+
+    config.vm.define "vmdb" do |vmdb|
+        vmdb.vm.box = "debian/bullseye64"
+        vmdb.vm.hostname = "vmdb"
+        vmdb.vm.network "public_network", bridge: "eno2", ip: "172.16.0.100"
+        vmdb.vm.provision "shell",
+        run: "always",
+        inline: <<-SHELL
+        ip route add default via 172.16.0.1 dev enp0s8
+        apt-get update
+        apt-get upgrade -y
+        SHELL
+        vmdb.vm.provision "shell" do |s|
+            ssh_pub_key = File.readlines("/home/ko55ur/.ssh/vagrant_id_rsa.pub").first.strip
+            s.inline = <<-SHELL
+            echo #{ssh_pub_key} >> /home/vagrant/.ssh/authorized_keys
+            SHELL
+        end
+        vmdb.vm.provider "virtualbox" do |vb|
+            vb.memory = 2048
+            vb.cpus = 1
+        end
+    end
+    config.vm.define "vmprometheus" do |vmprtm|
+        vmprtm.vm.box = "debian/bullseye64"
+        vmprtm.vm.hostname = "vmprtm"
+        vmprtm.vm.network "public_network", bridge: "eno2", ip: "172.16.0.104"
+        vmprtm.vm.provision "shell",
+        run: "always",
+        inline: <<-SHELL 
+        ip route add default via 172.16.0.1 dev enp0s8
+        apt-get update
+        apt-get upgrade -y
+        SHELL
+        vmprtm.vm.provision "shell" do |s|
+            ssh_pub_key = File.readlines("/home/ko55ur/.ssh/vagrant_id_rsa.pub").first.strip
+            s.inline = <<-SHELL
+            echo #{ssh_pub_key} >> /home/vagrant/.ssh/authorized_keys
+            SHELL
+        end
+        vmprtm.vm.provider "virtualbox" do |vb|
+            vb.memory = 2048
+            vb.cpus = 1
+        end
+    end
+end

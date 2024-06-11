@@ -1,0 +1,72 @@
+- name: Add PGDG APT key
+  apt_key:
+    url:  https://www.postgresql.org/media/keys/ACCC4CF8.asc
+  when: postgresql_install_from_pgdg
+  tags: postgresql.install
+
+- name: Add PGDG APT repository
+  apt_repository:
+    repo: "deb http://apt.postgresql.org/pub/repos/apt/ {{ ansible_distribution_release }}-pgdg main"
+  when: postgresql_install_from_pgdg
+  tags: postgresql.install
+
+- name: Install PostgreSQL
+  apt:
+    name: postgresql-{{ postgresql_version }}
+  tags: postgresql.install
+
+- name: Install python-psycopg2 (for Ansible)
+  apt:
+    name: python-psycopg2
+  tags: postgresql.install
+
+- name: Create databases
+  postgresql_db:
+    name: "{{ item.name }}"
+    template: "{{ item.template | default('') }}"
+    state: "{{ item.state | default('present') }}"
+  with_items: "{{ postgresql_databases }}"
+  become: true
+  become_user: postgres
+  tags: postgresql.dbs
+
+- name: Add users
+  postgresql_user:
+    name: "{{ item.name }}"
+    password: "{{ item.password | default('') }}"
+    db: "{{ item.db }}"
+    priv: "{{ item.priv  | default('') }}"
+    role_attr_flags: "{{ item.role_attr_flags | default('') }}"
+    state: "{{ item.state | default('present') }}"
+  with_items: "{{ postgresql_users }}"
+  become: true
+  become_user: postgres
+  tags: postgresql.users
+
+- name: Set postgresql options
+  template:
+    src: options.conf.j2
+    dest: "/etc/postgresql/{{ postgresql_version }}/main/conf.d/options.conf"
+  notify: restart postgresql
+  tags: postgresql.options
+
+- name: Authorize all remote IPv4 connections
+  lineinfile:
+    path: "/etc/postgresql/{{ postgresql_version }}/main/pg_hba.conf"
+    line: 'host all all 0.0.0.0/0 md5'
+  notify: restart postgresql
+  when: postgresql_authorize_remote_ipv4
+
+- name: Authorize all remote IPv6 connections
+  lineinfile:
+    path: "/etc/postgresql/{{ postgresql_version }}/main/pg_hba.conf"
+    line: 'host all all ::0/0 md5'
+  notify: restart postgresql
+  when: postgresql_authorize_remote_ipv6
+
+- name: Enable and start postgresql service
+  systemd:
+    name: postgresql.service
+    enabled: true
+    state: started
+  tags: postgresql.install

@@ -1,0 +1,42 @@
+---
+
+- hosts: vmdb
+  become: true
+  remote_user: vagrant
+  roles:
+    - { role: postgresql }
+  vars:
+    postgresql_version: 14
+    postgresql_install_from_pgdg: true
+    postgresql_options:
+      - {key: listen_addresses, value: "'*'"}
+      - {key: max_connections, value: 200}
+      - {key: shared_buffers, value: 1GB}
+    postgresql_databases:
+      - name: prom
+    postgresql_users:
+      - name: prom
+        password: "{{ vault_postgresql_password_prom }}"
+        db: prom
+
+- hosts: vmprtm
+  remote_user: vagrant
+  become: true
+  roles:
+    - { role: prometheus}
+  vars:
+    prometheus_web_listen_address: "127.0.0.1:9090"
+    prometheus_web_external_url: "https://prometheus.domain.tld"
+    prometheus_scrape_configs:
+      - job_name: "prometheus"
+        static_configs:
+          - targets:
+              - "localhost:9090"
+      - job_name: "node_exporter"
+        static_configs:
+          - targets:
+              - "localhost:9100"
+    prometheus_alertmanager_config:
+      - static_configs:
+          - targets:
+              - localhost:9093

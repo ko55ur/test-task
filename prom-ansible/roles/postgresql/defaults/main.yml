@@ -1,0 +1,11 @@
+---
+
+postgresql_install_from_pgdg: true
+postgresql_version: 11
+
+postgresql_authorize_remote_ipv4: false
+postgresql_authorize_remote_ipv6: false
+
+postgresql_databases: []
+postgresql_users: []
+postgresql_options: []

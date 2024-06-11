@@ -1,0 +1,5 @@
+{{ ansible_managed | comment(decoration="# ") }}
+
+{% for option in postgresql_options %}
+{{ option.key }} = {{ option.value }}
+{% endfor %}
