@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-set -ex
+set -e
 
-url="https://it.is.mysite.ru"
+url="https://nxt.selesvsev.ru"
 
-search_phrase="Про важное"
+search_phrase="nextcloud"
 
 # Запрашиваем статус сайта, на котором потом будем искать нужный текст
 status="$(curl -s -w "%{http_code}" -m 5 $url)"

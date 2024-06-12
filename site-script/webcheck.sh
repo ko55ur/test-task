@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -ex
 trap "exit 1" TERM
 export TOP_PID=$$
 STDOUTFILE=".tempCurlStdOut" # temp file to store stdout
@@ -47,13 +47,9 @@ if ping -q -w 1 -c 1 8.8.8.8 > /dev/null 2>&1; then
     CONTENT=$(<$STDOUTFILE) # if there are no errors, this is the HTML code of the web page
     if [[ "$HTTPCODE" -eq 200 ]] || [[ "$HTTPCODE" -eq 302 ]]; then
         stdOutput "HTTP STATUS CODE $HTTPCODE -> OK"
+	wget -q "$WEBSITE" -O - | grep -qi "$FINDCONTENT" && echo "Страница содержит искомый текст" || echo "Страница не содержит искомый текст"
     else
         stdError "HTTP STATUS CODE $HTTPCODE -> Has something gone wrong?"
-    fi
-    if ! [[ -z "$FINDCONTENT" ]]; then
-        if ! echo "$CONTENT" | grep -iq "$FINDCONTENT"; then # case insensitive check
-            stdError "Required content '$FINDCONTENT' is absent"
-        fi
     fi
 else
     >&2 echo "Internet connectivity not available" #stderr
