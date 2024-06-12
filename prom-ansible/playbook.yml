@@ -1,11 +1,19 @@
 ---
 
+# Перечисляем хосты на которые развернем с помощью ролей нужный софт
+
 - hosts: vmdb
-  become: true
-  remote_user: vagrant
   roles:
+
+# ставим ролью БД плюс к ней роли для установки экспортеров сбора метрик
+
     - { role: postgresql }
+    - { role: node_exporter }
+    - { role: postgres_exporter }
   vars:
+
+# Передали версию СУБД, настройки самой СУБД, имя создаваемой БД и пользователя для нее
+
     postgresql_version: 14
     postgresql_install_from_pgdg: true
     postgresql_options:
@@ -18,25 +26,26 @@
       - name: prom
         password: "{{ vault_postgresql_password_prom }}"
         db: prom
+# Передаем файл с паролем зашифрованным ansible-vault 
+
+  vars_files:
+    - roles/postgresql/vars/postgres_pass.yml
 
 - hosts: vmprtm
-  remote_user: vagrant
-  become: true
+
+# На хост ставим Prometheus и к нему экспортер 
+
   roles:
     - { role: prometheus}
+    - { role: node_exporter }
   vars:
-    prometheus_web_listen_address: "127.0.0.1:9090"
-    prometheus_web_external_url: "https://prometheus.domain.tld"
-    prometheus_scrape_configs:
-      - job_name: "prometheus"
-        static_configs:
-          - targets:
-              - "localhost:9090"
-      - job_name: "node_exporter"
-        static_configs:
-          - targets:
-              - "localhost:9100"
-    prometheus_alertmanager_config:
-      - static_configs:
-          - targets:
-              - localhost:9093
+
+# Здесь настраиваем хосты с которых собираем метрики и их эндпоинты
+
+    prometheus_targets:
+      node:
+      - targets:
+        - localhost:9100
+        - node.demo.do.prometheus.io
+        - 172.16.0.100:9100
+        - 172.16.0.100:9187

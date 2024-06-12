@@ -1,46 +1,85 @@
 ---
-- name: Create systemd service unit
-  ansible.builtin.template:
-    src: prometheus.service.j2
-    dest: /etc/systemd/system/prometheus.service
-    owner: root
-    group: root
-    mode: 0644
-  notify:
-    - Restart prometheus
 
-- name: Add ansible_default_alert.rules
+# Файл с конфигурациями Prometheus . Конфиги правил, целей сбора метрик, самого прометея
+
+- name: Alerting rules file
   ansible.builtin.template:
     src: "alert.rules.j2"
-    dest: "{{ prometheus_config_dir }}/rules/ansible_alert.rules"
-    owner: prometheus
-    group: prometheus
+    dest: "{{ prometheus_config_dir }}/rules/ansible_managed.rules"
+    owner: root
+    group: "{{ prometheus_system_group }}"
     mode: 0640
-    validate: "/usr/local/bin/promtool check rules %s"
+    validate: "{{ _prometheus_binary_install_dir }}/promtool check rules %s"
   when:
     - prometheus_alert_rules != []
+    - not prometheus_agent_mode
   notify:
-    - Reload prometheus
+    - reload prometheus
 
 - name: Copy custom alerting rule files
   ansible.builtin.copy:
     src: "{{ item }}"
     dest: "{{ prometheus_config_dir }}/rules/"
-    owner: prometheus
-    group: prometheus
+    owner: root
+    group: "{{ prometheus_system_group }}"
     mode: 0640
-    validate: "/usr/local/bin/promtool check rules %s"
+    validate: "{{ _prometheus_binary_install_dir }}/promtool check rules %s"
   with_fileglob: "{{ prometheus_alert_rules_files }}"
+  when:
+    - not prometheus_agent_mode
   notify:
-    - Reload prometheus
+    - reload prometheus
 
-- name: Add prometheus.yml
+- name: Configure prometheus
   ansible.builtin.template:
-    src: prometheus.yml.j2
+    src: "{{ prometheus_config_file }}"
     dest: "{{ prometheus_config_dir }}/prometheus.yml"
-    owner: prometheus
-    group: prometheus
+    force: true
+    owner: root
+    group: "{{ prometheus_system_group }}"
     mode: 0640
-    validate: "/usr/local/bin/promtool check config %s"
+    validate: "{{ _prometheus_binary_install_dir }}/promtool check config %s"
+  no_log: "{{ false if (lookup('env', 'CI')) or (lookup('env', 'MOLECULE_PROVISIONER_NAME')) else true }}"
   notify:
-    - Reload prometheus
+    - reload prometheus
+
+- name: Configure Prometheus web
+  ansible.builtin.copy:
+    content: "{{ prometheus_web_config | to_nice_yaml(indent=2, sort_keys=False) }}"
+    dest: "{{ prometheus_config_dir }}/web.yml"
+    force: true
+    owner: root
+    group: "{{ prometheus_system_group }}"
+    mode: 0640
+
+- name: Configure prometheus static targets
+  ansible.builtin.copy:
+    content: |
+      {{ item.value | to_nice_yaml(indent=2, sort_keys=False) }}
+    dest: "{{ prometheus_config_dir }}/file_sd/{{ item.key }}.yml"
+    force: true
+    owner: root
+    group: "{{ prometheus_system_group }}"
+    mode: 0640
+  with_dict: "{{ prometheus_targets }}"
+  when: prometheus_targets != {}
+
+- name: Copy prometheus custom static targets
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ prometheus_config_dir }}/file_sd/"
+    force: true
+    owner: root
+    group: "{{ prometheus_system_group }}"
+    mode: 0640
+  with_fileglob: "{{ prometheus_static_targets_files }}"
+
+- name: Copy prometheus scrape config files
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ prometheus_config_dir }}/scrapes/"
+    force: true
+    owner: root
+    group: "{{ prometheus_system_group }}"
+    mode: 0640
+  with_fileglob: "{{ prometheus_scrape_config_files }}"

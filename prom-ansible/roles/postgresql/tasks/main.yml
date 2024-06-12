@@ -1,3 +1,36 @@
+
+# обновляем хост куда ставим БД
+- name: Update all packages to their latest version
+  ansible.builtin.apt:
+    name: "*"
+    state: latest
+
+# задаем сколько валиден кеш пакетного менеджера
+
+- name: Update apt cache.
+  ansible.builtin.apt:
+    update_cache: yes
+    cache_valid_time: 86400
+
+# устанавливаем пакет gpg так как в стандартной инсталяции его нет
+
+- name: Install gnupg
+  ansible.builtin.apt:
+    name: gnupg
+    state: present
+    update_cache: yes
+
+# Ставим пакет ACL чтобы корректно управлять правами на файлы и каталоги, без него будем получать ошибку работы с разрешениями
+
+- name: Install ACL
+  ansible.builtin.apt:
+    name: acl
+    state: present
+    update_cache: yes
+
+
+# Тут и далее готовимся и устанвливаем СУБД, качаем ключ для репозитория, устанавливаем его ставим сам пакет СУБД, ставим пакет для работы ANsible с СУБД
+
 - name: Add PGDG APT key
   apt_key:
     url:  https://www.postgresql.org/media/keys/ACCC4CF8.asc
@@ -15,10 +48,13 @@
     name: postgresql-{{ postgresql_version }}
   tags: postgresql.install
 
-- name: Install python-psycopg2 (for Ansible)
+- name: Install python3-psycopg2 (for Ansible)
   apt:
-    name: python-psycopg2
+    name: python3-psycopg2
   tags: postgresql.install
+
+
+# Создаем базы, пользователя для них и права на работу
 
 - name: Create databases
   postgresql_db:
@@ -50,6 +86,8 @@
   notify: restart postgresql
   tags: postgresql.options
 
+# Настраиваем разрешения на подключения к PostgreSQL через pg_hba
+
 - name: Authorize all remote IPv4 connections
   lineinfile:
     path: "/etc/postgresql/{{ postgresql_version }}/main/pg_hba.conf"
@@ -63,6 +101,7 @@
     line: 'host all all ::0/0 md5'
   notify: restart postgresql
   when: postgresql_authorize_remote_ipv6
+
 
 - name: Enable and start postgresql service
   systemd:
