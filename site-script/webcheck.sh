@@ -1,4 +1,7 @@
 #!/bin/bash
+#
+# Пример запуска скрипта ./webcheck.sh -r="Про важное" https://is.it.mysite.ru
+# 
 # Прерываем если где-то ошибка
 set -e
 
@@ -46,12 +49,12 @@ function stdError {
 }
 # Проверяем соединение с интернетом переда запросом к сайту
 if ping -q -w 1 -c 1 8.8.8.8 > /dev/null 2>&1; then
-    stdOutput "Соединение с интеренетом OK"
+    stdOutput "Соединение с интернетом OK"
     HTTPCODE=$(curl --max-time 5 --silent --write-out %{response_code} --output "$STDOUTFILE" "$WEBSITE")
 # Если получили код 200 или 302, то уже ищем нужный нам контент
     if [[ "$HTTPCODE" -eq 200 ]] || [[ "$HTTPCODE" -eq 302 ]]; then
         stdOutput "HTTP STATUS CODE $HTTPCODE -> OK"
-	    wget -q "$WEBSITE" -O - | grep -qi "$FINDCONTENT" && echo "Страница содержит искомый текст" || echo "Страница не содержит искомый текст"
+	    wget -q "$WEBSITE" -O - | grep -qi "$FINDCONTENT" && echo "Страница содержит искомый текст -> "$FINDCONTENT" " || echo "Страница не содержит искомый текст"
     else
         stdError "Запрос завершился со статусом ошибки CODE $HTTPCODE?"
     fi
